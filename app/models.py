@@ -324,6 +324,38 @@ class Tag(db.Model):
             .limit(limit)\
             .all()
 
+    @staticmethod
+    def get_all_tags_with_count():
+        """获取所有标签及其使用次数"""
+        return db.session.query(Tag, func.count(post_tags.c.post_id).label('count'))\
+            .outerjoin(post_tags)\
+            .group_by(Tag.id)\
+            .order_by(db.desc('count'))\
+            .all()
+
+    @staticmethod
+    def cleanup_unused_tags():
+        """删除未使用的标签"""
+        unused_tags = db.session.query(Tag)\
+            .outerjoin(post_tags)\
+            .group_by(Tag.id)\
+            .having(func.count(post_tags.c.post_id) == 0)\
+            .all()
+
+        count = len(unused_tags)
+        for tag in unused_tags:
+            db.session.delete(tag)
+
+        if count > 0:
+            db.session.commit()
+
+        return count
+
+    @property
+    def post_count(self):
+        """获取该标签关联的文章数量"""
+        return self.posts.count()
+
 
 class Post(db.Model):
     __tablename__ = 'posts'

@@ -325,3 +325,35 @@ def posts_by_tag(tag_name):
         error_out=False)
     posts = pagination.items
     return render_template('tag.html', tag=tag, posts=posts, pagination=pagination)
+
+
+@main.route('/manage-tags')
+@login_required
+@admin_required
+def manage_tags():
+    """标签管理页面（仅管理员）"""
+    tags_with_count = Tag.get_all_tags_with_count()
+    return render_template('manage_tags.html', tags_with_count=tags_with_count)
+
+
+@main.route('/cleanup-tags', methods=['POST'])
+@login_required
+@admin_required
+def cleanup_tags():
+    """清理未使用的标签"""
+    count = Tag.cleanup_unused_tags()
+    flash(f'Successfully cleaned up {count} unused tag(s).')
+    return redirect(url_for('.manage_tags'))
+
+
+@main.route('/delete-tag/<int:tag_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_tag(tag_id):
+    """删除指定标签"""
+    tag = Tag.query.get_or_404(tag_id)
+    tag_name = tag.name
+    db.session.delete(tag)
+    db.session.commit()
+    flash(f'Tag "{tag_name}" has been deleted.')
+    return redirect(url_for('.manage_tags'))
