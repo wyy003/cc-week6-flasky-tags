@@ -1,5 +1,5 @@
 from flask import render_template, redirect, url_for, abort, flash, request,\
-    current_app, make_response
+    current_app, make_response, jsonify
 from flask_login import login_required, current_user
 from flask_sqlalchemy import get_debug_queries
 from . import main
@@ -357,3 +357,10 @@ def delete_tag(tag_id):
     db.session.commit()
     flash(f'Tag "{tag_name}" has been deleted.')
     return redirect(url_for('.manage_tags'))
+
+
+@main.route('/api/tags')
+def get_tags():
+    """获取所有标签名称（用于自动补全）"""
+    tags = Tag.query.all()
+    return jsonify([tag.name for tag in tags])

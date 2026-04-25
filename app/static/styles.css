@@ -105,3 +105,42 @@ div.flask-pagedown-preview h3 {
 .table.followers tr {
     border-bottom: 1px solid #e0e0e0;
 }
+
+/* Tag autocomplete styles */
+.tag-autocomplete-list {
+    position: absolute;
+    border: 1px solid #d4d4d4;
+    border-top: none;
+    z-index: 99;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tag-autocomplete-item {
+    padding: 10px;
+    cursor: pointer;
+    background-color: #fff;
+    border-bottom: 1px solid #d4d4d4;
+}
+
+.tag-autocomplete-item:hover {
+    background-color: #e9e9e9;
+}
+
+.tag-autocomplete-active {
+    background-color: #337ab7 !important;
+    color: #ffffff;
+}
+
+.tag-autocomplete-active strong {
+    color: #ffffff;
+}
+
+.tag-autocomplete-item strong {
+    color: #337ab7;
+}
