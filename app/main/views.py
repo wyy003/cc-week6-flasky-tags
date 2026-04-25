@@ -8,6 +8,40 @@ from .forms import EditProfileForm, EditProfileAdminForm, PostForm,\
 from .. import db
 from ..models import Permission, Role, User, Post, Comment, Tag, post_tags
 from ..decorators import admin_required, permission_required
+import re
+
+
+# 标签配置常量
+MAX_TAG_LENGTH = 64
+MAX_TAGS_PER_POST = 10
+
+
+def process_post_tags(post, tags_data):
+    """
+    处理文章标签的通用方法
+
+    Args:
+        post: Post 对象
+        tags_data: 逗号分隔的标签字符串
+    """
+    post.tags = []  # 清空现有标签
+
+    if not tags_data:
+        return
+
+    # 解析标签，限制长度和数量
+    tag_names = [name.strip()[:MAX_TAG_LENGTH]
+                 for name in tags_data.split(',')
+                 if name.strip()][:MAX_TAGS_PER_POST]
+
+    # 过滤特殊字符，只保留字母、数字、空格、连字符和下划线
+    tag_names = [re.sub(r'[^\w\s-]', '', name) for name in tag_names if name]
+
+    # 创建或获取标签（使用 get_or_create 确保小写一致性）
+    for tag_name in tag_names:
+        if tag_name:  # 确保过滤后不为空
+            tag = Tag.get_or_create(tag_name)
+            post.tags.append(tag)
 
 
 @main.after_app_request
@@ -40,15 +74,8 @@ def index():
                     author=current_user._get_current_object())
         db.session.add(post)
 
-        # 处理标签
-        if form.tags.data:
-            tag_names = [name.strip() for name in form.tags.data.split(',') if name.strip()]
-            for tag_name in tag_names:
-                tag = Tag.query.filter_by(name=tag_name).first()
-                if tag is None:
-                    tag = Tag(name=tag_name)
-                    db.session.add(tag)
-                post.tags.append(tag)
+        # 处理标签（使用通用方法）
+        process_post_tags(post, form.tags.data)
 
         db.session.commit()
         return redirect(url_for('.index'))
@@ -171,19 +198,8 @@ def edit(id):
     if form.validate_on_submit():
         post.body = form.body.data
 
-        # 更新标签
-        # 先清空现有标签
-        post.tags = []
-
-        # 添加新标签
-        if form.tags.data:
-            tag_names = [name.strip() for name in form.tags.data.split(',') if name.strip()]
-            for tag_name in tag_names:
-                tag = Tag.query.filter_by(name=tag_name).first()
-                if tag is None:
-                    tag = Tag(name=tag_name)
-                    db.session.add(tag)
-                post.tags.append(tag)
+        # 更新标签（使用通用方法）
+        process_post_tags(post, form.tags.data)
 
         db.session.add(post)
         db.session.commit()

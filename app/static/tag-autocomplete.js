@@ -15,13 +15,23 @@
         var allTags = [];
         var currentFocus = -1;
 
+        // HTML 转义函数，防止 XSS
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         // 从 API 获取所有标签
         fetch('/api/tags')
             .then(response => response.json())
             .then(data => {
-                allTags = data.tags || [];
+                allTags = Array.isArray(data) ? data : [];
             })
-            .catch(error => console.error('Error fetching tags:', error));
+            .catch(error => {
+                console.error('Error fetching tags:', error);
+                // 降级处理：禁用自动补全但不影响输入
+            });
 
         // 输入事件处理
         tagInput.addEventListener('input', function(e) {
@@ -49,14 +59,14 @@
                 var item = document.createElement('div');
                 item.className = 'tag-autocomplete-item';
 
-                // 高亮匹配部分
+                // 高亮匹配部分（使用转义防止 XSS）
                 var matchIndex = tag.toLowerCase().indexOf(currentTag.toLowerCase());
-                var beforeMatch = tag.substr(0, matchIndex);
-                var match = tag.substr(matchIndex, currentTag.length);
-                var afterMatch = tag.substr(matchIndex + currentTag.length);
+                var beforeMatch = escapeHtml(tag.substr(0, matchIndex));
+                var match = escapeHtml(tag.substr(matchIndex, currentTag.length));
+                var afterMatch = escapeHtml(tag.substr(matchIndex + currentTag.length));
 
                 item.innerHTML = beforeMatch + '<strong>' + match + '</strong>' + afterMatch;
-                item.innerHTML += '<input type="hidden" value="' + tag + '">';
+                item.innerHTML += '<input type="hidden" value="' + escapeHtml(tag) + '">';
 
                 // 点击选择标签
                 item.addEventListener('click', function(e) {
