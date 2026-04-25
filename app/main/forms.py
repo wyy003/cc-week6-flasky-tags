@@ -53,6 +53,7 @@ class EditProfileAdminForm(FlaskForm):
 
 class PostForm(FlaskForm):
     body = PageDownField("What's on your mind?", validators=[DataRequired()])
+    tags = StringField('Tags (comma separated)', validators=[Length(0, 200)])
     submit = SubmitField('Submit')
 
 

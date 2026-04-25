@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% import "_macros.html" as macros %}
+
+{% block title %}Flasky - Tag: {{ tag.name }}{% endblock %}
+
+{% block page_content %}
+<div class="page-header">
+    <h1>Posts tagged with <span class="label label-info">{{ tag.name }}</span></h1>
+    <p>{{ pagination.total }} post(s) found</p>
+</div>
+{% include '_posts.html' %}
+{% if pagination %}
+<div class="pagination">
+    {{ macros.pagination_widget(pagination, '.posts_by_tag', tag_name=tag.name) }}
+</div>
+{% endif %}
+{% endblock %}

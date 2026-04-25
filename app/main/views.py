@@ -6,7 +6,7 @@ from . import main
 from .forms import EditProfileForm, EditProfileAdminForm, PostForm,\
     CommentForm
 from .. import db
-from ..models import Permission, Role, User, Post, Comment
+from ..models import Permission, Role, User, Post, Comment, Tag, post_tags
 from ..decorators import admin_required, permission_required
 
 
@@ -39,6 +39,17 @@ def index():
         post = Post(body=form.body.data,
                     author=current_user._get_current_object())
         db.session.add(post)
+
+        # 处理标签
+        if form.tags.data:
+            tag_names = [name.strip() for name in form.tags.data.split(',') if name.strip()]
+            for tag_name in tag_names:
+                tag = Tag.query.filter_by(name=tag_name).first()
+                if tag is None:
+                    tag = Tag(name=tag_name)
+                    db.session.add(tag)
+                post.tags.append(tag)
+
         db.session.commit()
         return redirect(url_for('.index'))
     page = request.args.get('page', 1, type=int)
@@ -53,8 +64,18 @@ def index():
         page=page, per_page=current_app.config['FLASKY_POSTS_PER_PAGE'],
         error_out=False)
     posts = pagination.items
+
+    # 获取热门标签 Top 5
+    top_tags = db.session.query(Tag, db.func.count(post_tags.c.post_id).label('count'))\
+        .join(post_tags)\
+        .group_by(Tag.id)\
+        .order_by(db.desc('count'))\
+        .limit(5)\
+        .all()
+
     return render_template('index.html', form=form, posts=posts,
-                           show_followed=show_followed, pagination=pagination)
+                           show_followed=show_followed, pagination=pagination,
+                           top_tags=top_tags)
 
 
 @main.route('/user/<username>')
@@ -149,11 +170,27 @@ def edit(id):
     form = PostForm()
     if form.validate_on_submit():
         post.body = form.body.data
+
+        # 更新标签
+        # 先清空现有标签
+        post.tags = []
+
+        # 添加新标签
+        if form.tags.data:
+            tag_names = [name.strip() for name in form.tags.data.split(',') if name.strip()]
+            for tag_name in tag_names:
+                tag = Tag.query.filter_by(name=tag_name).first()
+                if tag is None:
+                    tag = Tag(name=tag_name)
+                    db.session.add(tag)
+                post.tags.append(tag)
+
         db.session.add(post)
         db.session.commit()
         flash('The post has been updated.')
         return redirect(url_for('.post', id=post.id))
     form.body.data = post.body
+    form.tags.data = ', '.join([tag.name for tag in post.tags])
     return render_template('edit_post.html', form=form)
 
 
@@ -276,3 +313,15 @@ def moderate_disable(id):
     db.session.commit()
     return redirect(url_for('.moderate',
                             page=request.args.get('page', 1, type=int)))
+
+
+@main.route('/tag/<tag_name>')
+def posts_by_tag(tag_name):
+    """按标签筛选文章"""
+    tag = Tag.query.filter_by(name=tag_name).first_or_404()
+    page = request.args.get('page', 1, type=int)
+    pagination = tag.posts.order_by(Post.timestamp.desc()).paginate(
+        page=page, per_page=current_app.config['FLASKY_POSTS_PER_PAGE'],
+        error_out=False)
+    posts = pagination.items
+    return render_template('tag.html', tag=tag, posts=posts, pagination=pagination)

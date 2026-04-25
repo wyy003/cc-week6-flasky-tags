@@ -8,6 +8,7 @@ from flask import current_app, request, url_for
 from flask_login import UserMixin, AnonymousUserMixin
 from app.exceptions import ValidationError
 from . import db, login_manager
+from sqlalchemy import func
 
 
 class Permission:
@@ -286,6 +287,44 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
+# 文章-标签关联表（多对多）
+post_tags = db.Table('post_tags',
+    db.Column('post_id', db.Integer, db.ForeignKey('posts.id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tags.id'), primary_key=True),
+    db.Column('created_at', db.DateTime, default=datetime.utcnow)
+)
+
+
+class Tag(db.Model):
+    __tablename__ = 'tags'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return '<Tag %r>' % self.name
+
+    @staticmethod
+    def get_or_create(tag_name):
+        """获取或创建标签（避免重复）"""
+        tag_name = tag_name.strip().lower()
+        tag = Tag.query.filter_by(name=tag_name).first()
+        if not tag:
+            tag = Tag(name=tag_name)
+            db.session.add(tag)
+        return tag
+
+    @staticmethod
+    def get_popular_tags(limit=5):
+        """获取热门标签（按使用次数排序）"""
+        return db.session.query(Tag, func.count(post_tags.c.post_id).label('count'))\
+            .join(post_tags)\
+            .group_by(Tag.id)\
+            .order_by(db.desc('count'))\
+            .limit(limit)\
+            .all()
+
+
 class Post(db.Model):
     __tablename__ = 'posts'
     id = db.Column(db.Integer, primary_key=True)
@@ -294,6 +333,7 @@ class Post(db.Model):
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     comments = db.relationship('Comment', backref='post', lazy='dynamic')
+    tags = db.relationship('Tag', secondary=post_tags, backref=db.backref('posts', lazy='dynamic'), lazy='dynamic')
 
     @staticmethod
     def on_changed_body(target, value, oldvalue, initiator):
